@@ -30,6 +30,9 @@ jobs:
       - name: Install make
         run: choco install make -y
 
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
       - name: Derive version from tag
         id: version
         shell: pwsh
@@ -42,16 +45,15 @@ jobs:
           }
           "version=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Setup project dependencies
-        run: make setup
-
-      - name: Publish win-x64
-        run: make publish VERSION=${{ steps.version.outputs.version }} INFO_VERSION=${{ github.ref_name }}
+      - name: Build release artifacts
+        run: make portable installer VERSION=${{ steps.version.outputs.version }} INFO_VERSION=${{ github.ref_name }}
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           name: WinGroup ${{ github.ref_name }}
-          files: publish/win-x64/WinGroup.exe
+          files: |
+            dist/WinGroup-${{ steps.version.outputs.version }}-portable.exe
+            dist/WinGroup-${{ steps.version.outputs.version }}-setup.exe
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}

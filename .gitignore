@@ -1,10 +1,11 @@
 bin/
 obj/
-.vs/
+dist/
 publish/
-
-.icon-build/
 node_modules/
+
+.vs/
+.icon-build/
 
 *.user
 *.rsuser
