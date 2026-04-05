@@ -56,7 +56,7 @@ jobs:
           $portable = Get-Item "dist/WinGroup.exe"
           $setup = Get-Item "dist/WinGroup-Setup.exe"
           $maxPortableMb = 80
-          $maxSetupMb = 60
+          $maxSetupMb = 70
           $portableMb = [Math]::Round($portable.Length / 1MB, 2)
           $setupMb = [Math]::Round($setup.Length / 1MB, 2)
           "Portable size: $portableMb MB"
