@@ -50,12 +50,25 @@ jobs:
       - name: Build release artifacts
         run: make portable installer VERSION=${{ steps.version.outputs.version }} INFO_VERSION=${{ github.ref_name }}
 
+      - name: Test release artifacts
+        shell: pwsh
+        run: |
+          $portable = Get-Item "dist/WinGroup.exe"
+          $setup = Get-Item "dist/WinGroup-Setup.exe"
+          $portableMb = [Math]::Round($portable.Length / 1MB, 2)
+          $setupMb = [Math]::Round($setup.Length / 1MB, 2)
+          "Portable size: $portableMb MB"
+          "Setup size: $setupMb MB"
+          "### Release Artifact Sizes" >> $env:GITHUB_STEP_SUMMARY
+          "- WinGroup.exe: $portableMb MB" >> $env:GITHUB_STEP_SUMMARY
+          "- WinGroup-Setup.exe: $setupMb MB" >> $env:GITHUB_STEP_SUMMARY
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           name: WinGroup ${{ github.ref_name }}
           files: |
-            dist/WinGroup-${{ steps.version.outputs.version }}-portable.exe
-            dist/WinGroup-${{ steps.version.outputs.version }}-setup.exe
+            dist/WinGroup.exe
+            dist/WinGroup-Setup.exe
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
