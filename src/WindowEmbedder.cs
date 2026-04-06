@@ -64,7 +64,7 @@ internal sealed class WindowEmbedder : IDisposable
             & ~Win32.WS_CAPTION
             & ~Win32.WS_BORDER
             & ~Win32.WS_DLGFRAME;
-        var embeddedExStyle = ((state.OriginalExStyle | Win32.WS_EX_TOOLWINDOW) & ~Win32.WS_EX_APPWINDOW)
+        var embeddedExStyle = (state.OriginalExStyle & ~Win32.WS_EX_APPWINDOW)
             & ~Win32.WS_EX_WINDOWEDGE
             & ~Win32.WS_EX_CLIENTEDGE
             & ~Win32.WS_EX_STATICEDGE;
@@ -101,6 +101,7 @@ internal sealed class WindowEmbedder : IDisposable
             }
 
             ApplyEmbeddedBorderStyle(hwnd);
+            state.UpdateClientInsets();
 
             _paneToWindow[pane] = state;
             _windowToPane[hwnd] = pane;
@@ -411,10 +412,10 @@ internal sealed class WindowEmbedder : IDisposable
             return true;
         }
 
-        var targetX = 0;
-        var targetY = 0;
-        var targetWidth = Math.Max(1, hostWidth);
-        var targetHeight = Math.Max(1, hostHeight);
+        var targetX = -state.ClientInsetLeft;
+        var targetY = -state.ClientInsetTop;
+        var targetWidth = Math.Max(1, hostWidth + state.ClientInsetLeft + state.ClientInsetRight);
+        var targetHeight = Math.Max(1, hostHeight + state.ClientInsetTop + state.ClientInsetBottom);
 
         if (!force
             && state.LastX == targetX
@@ -527,6 +528,10 @@ internal sealed class WindowEmbedder : IDisposable
             LastY = int.MinValue;
             LastWidth = int.MinValue;
             LastHeight = int.MinValue;
+            ClientInsetLeft = 0;
+            ClientInsetTop = 0;
+            ClientInsetRight = 0;
+            ClientInsetBottom = 0;
         }
 
         public IntPtr Hwnd { get; }
@@ -544,5 +549,55 @@ internal sealed class WindowEmbedder : IDisposable
         public int LastY { get; set; }
         public int LastWidth { get; set; }
         public int LastHeight { get; set; }
+        public int ClientInsetLeft { get; private set; }
+        public int ClientInsetTop { get; private set; }
+        public int ClientInsetRight { get; private set; }
+        public int ClientInsetBottom { get; private set; }
+
+        public void UpdateClientInsets()
+        {
+            if (!Win32.GetWindowRect(Hwnd, out var windowRect))
+            {
+                ClientInsetLeft = 0;
+                ClientInsetTop = 0;
+                ClientInsetRight = 0;
+                ClientInsetBottom = 0;
+                return;
+            }
+
+            if (!Win32.GetClientRect(Hwnd, out var clientRect))
+            {
+                ClientInsetLeft = 0;
+                ClientInsetTop = 0;
+                ClientInsetRight = 0;
+                ClientInsetBottom = 0;
+                return;
+            }
+
+            var clientTopLeft = new Win32.POINT
+            {
+                X = clientRect.Left,
+                Y = clientRect.Top
+            };
+            var clientBottomRight = new Win32.POINT
+            {
+                X = clientRect.Right,
+                Y = clientRect.Bottom
+            };
+
+            if (!Win32.ClientToScreen(Hwnd, ref clientTopLeft) || !Win32.ClientToScreen(Hwnd, ref clientBottomRight))
+            {
+                ClientInsetLeft = 0;
+                ClientInsetTop = 0;
+                ClientInsetRight = 0;
+                ClientInsetBottom = 0;
+                return;
+            }
+
+            ClientInsetLeft = Math.Max(0, clientTopLeft.X - windowRect.Left);
+            ClientInsetTop = Math.Max(0, clientTopLeft.Y - windowRect.Top);
+            ClientInsetRight = Math.Max(0, windowRect.Right - clientBottomRight.X);
+            ClientInsetBottom = Math.Max(0, windowRect.Bottom - clientBottomRight.Y);
+        }
     }
 }

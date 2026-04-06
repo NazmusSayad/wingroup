@@ -38,7 +38,18 @@ public sealed class ShellForm : Form
 
     private void OnLoad(object? sender, EventArgs e)
     {
+        ApplyMainWindowTheme();
         _paneManager.Initialize();
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        base.WndProc(ref m);
+
+        if (m.Msg == Win32.WM_SETTINGCHANGE || m.Msg == Win32.WM_THEMECHANGED)
+        {
+            ApplyMainWindowTheme();
+        }
     }
 
     private void OnResize(object? sender, EventArgs e)
@@ -56,5 +67,24 @@ public sealed class ShellForm : Form
     private void OnFormClosed(object? sender, FormClosedEventArgs e)
     {
         _windowEmbedder.Dispose();
+    }
+
+    private void ApplyMainWindowTheme()
+    {
+        if (!IsHandleCreated)
+        {
+            return;
+        }
+
+        var useDark = ShouldUseDarkTitleBar() ? 1u : 0u;
+        Win32.DwmSetWindowAttribute(Handle, Win32.DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDark, 4);
+        Win32.DwmSetWindowAttribute(Handle, Win32.DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, ref useDark, 4);
+    }
+
+    private static bool ShouldUseDarkTitleBar()
+    {
+        using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+        var value = key?.GetValue("AppsUseLightTheme");
+        return value is int intValue && intValue == 0;
     }
 }
