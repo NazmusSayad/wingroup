@@ -8,7 +8,7 @@ internal sealed class WindowEmbedder : IDisposable
     private readonly Dictionary<Panel, EmbeddedWindowState> _paneToWindow = new();
     private readonly Dictionary<IntPtr, Panel> _windowToPane = new();
     private readonly Win32.WinEventDelegate _windowEventCallback;
-    private readonly IntPtr _moveSizeHook;
+    private readonly IntPtr _moveSizeAndMinimizeHook;
     private readonly IntPtr _destroyHook;
 
     public event Action<Panel>? EmbeddedWindowDetached;
@@ -17,9 +17,9 @@ internal sealed class WindowEmbedder : IDisposable
     {
         _uiControl = uiControl;
         _windowEventCallback = OnWindowEvent;
-        _moveSizeHook = Win32.SetWinEventHook(
+        _moveSizeAndMinimizeHook = Win32.SetWinEventHook(
             Win32.EVENT_SYSTEM_MOVESIZESTART,
-            Win32.EVENT_SYSTEM_MOVESIZEEND,
+            Win32.EVENT_SYSTEM_MINIMIZEEND,
             IntPtr.Zero,
             _windowEventCallback,
             0,
@@ -270,9 +270,11 @@ internal sealed class WindowEmbedder : IDisposable
             return;
         }
 
-        if (eventType == Win32.EVENT_SYSTEM_MOVESIZESTART)
+        if (eventType == Win32.EVENT_SYSTEM_MOVESIZESTART
+            || eventType == Win32.EVENT_SYSTEM_MINIMIZESTART
+            || eventType == Win32.EVENT_SYSTEM_MINIMIZEEND)
         {
-            state.IsInMoveSizeSession = true;
+            DetachTrackedWindow(hwnd, restoreWindowState: true);
             return;
         }
 
@@ -293,21 +295,33 @@ internal sealed class WindowEmbedder : IDisposable
 
     private void HandleTrackedWindowDestroyed(IntPtr hwnd)
     {
-        if (!_windowToPane.TryGetValue(hwnd, out var pane))
+        DetachTrackedWindow(hwnd, restoreWindowState: false);
+    }
+
+    private void DetachTrackedWindow(IntPtr hwnd, bool restoreWindowState)
+    {
+        if (!_windowToPane.TryGetValue(hwnd, out var pane)
+            || !_paneToWindow.TryGetValue(pane, out var state))
         {
             return;
         }
 
         _windowToPane.Remove(hwnd);
         _paneToWindow.Remove(pane);
+
+        if (restoreWindowState)
+        {
+            RestoreWindowState(state);
+        }
+
         EmbeddedWindowDetached?.Invoke(pane);
     }
 
     public void Dispose()
     {
-        if (_moveSizeHook != IntPtr.Zero)
+        if (_moveSizeAndMinimizeHook != IntPtr.Zero)
         {
-            Win32.UnhookWinEvent(_moveSizeHook);
+            Win32.UnhookWinEvent(_moveSizeAndMinimizeHook);
         }
 
         if (_destroyHook != IntPtr.Zero)
