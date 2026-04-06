@@ -312,7 +312,7 @@ internal sealed class WindowEmbedder : IDisposable
 
         if (restoreWindowState)
         {
-            RestoreWindowState(state);
+            RestoreWindowStateForEventDetach(state);
         }
 
         EmbeddedWindowDetached?.Invoke(pane);
@@ -387,6 +387,24 @@ internal sealed class WindowEmbedder : IDisposable
         }
 
         Win32.ShowWindow(state.Hwnd, state.WasVisible ? Win32.SW_SHOW : Win32.SW_HIDE);
+    }
+
+    private static void RestoreWindowStateForEventDetach(EmbeddedWindowState state)
+    {
+        if (!Win32.IsWindow(state.Hwnd))
+        {
+            return;
+        }
+
+        Win32.SetParent(state.Hwnd, state.OriginalParent);
+
+        Win32.SetLastError(0);
+        Win32.SetWindowLong(state.Hwnd, Win32.GWL_STYLE, state.OriginalStyle);
+        Win32.SetLastError(0);
+        Win32.SetWindowLong(state.Hwnd, Win32.GWL_EXSTYLE, state.OriginalExStyle);
+
+        ApplyFrameChange(state.Hwnd, out _);
+        RestoreDefaultBorderStyle(state.Hwnd);
     }
 
     private bool FitWindowToHost(EmbeddedWindowState state, bool force, out int errorCode)
