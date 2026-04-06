@@ -279,13 +279,6 @@ internal sealed class WindowEmbedder : IDisposable
             return;
         }
 
-        if (eventType == Win32.EVENT_SYSTEM_MOVESIZEEND)
-        {
-            state.IsInMoveSizeSession = false;
-            FitWindowToHost(state, true, out _);
-            return;
-        }
-
         if (eventType == Win32.EVENT_OBJECT_DESTROY
             && idObject == Win32.OBJID_WINDOW
             && idChild == 0)
@@ -541,7 +534,6 @@ internal sealed class WindowEmbedder : IDisposable
             HasRect = hasRect;
             OriginalRect = originalRect;
             WasVisible = wasVisible;
-            IsInMoveSizeSession = false;
             LastX = int.MinValue;
             LastY = int.MinValue;
             LastWidth = int.MinValue;
@@ -562,7 +554,6 @@ internal sealed class WindowEmbedder : IDisposable
         public bool HasRect { get; }
         public Win32.RECT OriginalRect { get; }
         public bool WasVisible { get; }
-        public bool IsInMoveSizeSession { get; set; }
         public int LastX { get; set; }
         public int LastY { get; set; }
         public int LastWidth { get; set; }
