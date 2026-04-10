@@ -335,7 +335,10 @@ internal sealed class PaneManager
             return;
         }
 
-        e.DrawBackground();
+        using (var backgroundBrush = new SolidBrush(picker.BackColor))
+        {
+            e.Graphics.FillRectangle(backgroundBrush, e.Bounds);
+        }
 
         if (e.Index < 0 || e.Index >= picker.Items.Count)
         {
@@ -395,7 +398,6 @@ internal sealed class PaneManager
                 TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter);
         }
 
-        e.DrawFocusRectangle();
     }
 
     private void OnPanePickerMouseMove(ListBox picker, MouseEventArgs e)
