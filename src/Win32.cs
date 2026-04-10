@@ -40,6 +40,7 @@ internal static class Win32
     public const int WM_XBUTTONDOWN = 0x020B;
     public const int WM_SETTINGCHANGE = 0x001A;
     public const int WM_THEMECHANGED = 0x031A;
+    public const int WM_EXITSIZEMOVE = 0x0232;
 
     public const uint DWMWA_BORDER_COLOR = 34;
     public const uint DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
