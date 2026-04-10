@@ -43,6 +43,8 @@ internal static class Win32
     public const int WM_EXITSIZEMOVE = 0x0232;
     public const int WM_NCCALCSIZE = 0x0083;
     public const int WM_NCHITTEST = 0x0084;
+    public const int WM_NCPAINT = 0x0085;
+    public const int WM_NCACTIVATE = 0x0086;
     public const int WM_NCLBUTTONDOWN = 0x00A1;
 
     public const int HTCAPTION = 2;

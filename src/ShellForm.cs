@@ -67,6 +67,7 @@ public sealed class ShellForm : Form
         Load += OnLoad;
         Resize += OnResize;
         Activated += OnActivated;
+        Deactivate += OnDeactivate;
         DpiChanged += OnDpiChanged;
         FormClosing += OnFormClosing;
         FormClosed += OnFormClosed;
@@ -96,10 +97,23 @@ public sealed class ShellForm : Form
 
     protected override void WndProc(ref Message m)
     {
-        if (m.Msg == Win32.WM_NCCALCSIZE && m.WParam != IntPtr.Zero)
+        if (m.Msg == Win32.WM_NCACTIVATE)
+        {
+            ApplyMainWindowTheme();
+            m.Result = (IntPtr)1;
+            return;
+        }
+
+        if (m.Msg == Win32.WM_NCPAINT)
+        {
+            m.Result = IntPtr.Zero;
+            return;
+        }
+
+        if (m.Msg == Win32.WM_NCCALCSIZE)
         {
             base.WndProc(ref m);
-            AdjustClientTopInset(ref m);
+            AdjustClientTopInset(ref m, m.WParam != IntPtr.Zero);
             return;
         }
 
@@ -141,7 +155,13 @@ public sealed class ShellForm : Form
 
     private void OnActivated(object? sender, EventArgs e)
     {
+        ApplyMainWindowTheme();
         BeginInvoke(new Action(_windowEmbedder.ActivateLastEmbeddedWindow));
+    }
+
+    private void OnDeactivate(object? sender, EventArgs e)
+    {
+        ApplyMainWindowTheme();
     }
 
     private void OnFormClosed(object? sender, FormClosedEventArgs e)
@@ -169,8 +189,10 @@ public sealed class ShellForm : Form
         }
 
         var useDark = ShouldUseDarkTitleBar() ? 1u : 0u;
+        var borderColorNone = Win32.DWMWA_COLOR_NONE;
         Win32.DwmSetWindowAttribute(Handle, Win32.DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDark, 4);
         Win32.DwmSetWindowAttribute(Handle, Win32.DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, ref useDark, 4);
+        Win32.DwmSetWindowAttribute(Handle, Win32.DWMWA_BORDER_COLOR, ref borderColorNone, 4);
     }
 
     private static bool ShouldUseDarkTitleBar()
@@ -367,17 +389,26 @@ public sealed class ShellForm : Form
         Close
     }
 
-    private void AdjustClientTopInset(ref Message m)
+    private void AdjustClientTopInset(ref Message m, bool hasCalcParams)
     {
         if (WindowState != FormWindowState.Normal || m.LParam == IntPtr.Zero)
         {
             return;
         }
 
-        var parameters = Marshal.PtrToStructure<Win32.NCCALCSIZE_PARAMS>(m.LParam);
         var topInset = Win32.GetSystemMetrics(Win32.SM_CYSIZEFRAME) + Win32.GetSystemMetrics(Win32.SM_CXPADDEDBORDER);
-        parameters.rgrc0.Top -= topInset;
-        Marshal.StructureToPtr(parameters, m.LParam, false);
+        if (hasCalcParams)
+        {
+            var parameters = Marshal.PtrToStructure<Win32.NCCALCSIZE_PARAMS>(m.LParam);
+            parameters.rgrc0.Top -= topInset;
+            Marshal.StructureToPtr(parameters, m.LParam, false);
+            m.Result = IntPtr.Zero;
+            return;
+        }
+
+        var rect = Marshal.PtrToStructure<Win32.RECT>(m.LParam);
+        rect.Top -= topInset;
+        Marshal.StructureToPtr(rect, m.LParam, false);
         m.Result = IntPtr.Zero;
     }
 
