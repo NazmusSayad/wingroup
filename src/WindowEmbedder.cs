@@ -7,6 +7,7 @@ internal sealed class WindowEmbedder : IDisposable
     private readonly Control _uiControl;
     private readonly Dictionary<Panel, EmbeddedWindowState> _paneToWindow = new();
     private readonly Dictionary<IntPtr, Panel> _windowToPane = new();
+    private Panel? _lastFocusedPane;
     private readonly Win32.WinEventDelegate _windowEventCallback;
     private readonly IntPtr _moveSizeAndMinimizeHook;
     private readonly IntPtr _destroyHook;
@@ -133,6 +134,10 @@ internal sealed class WindowEmbedder : IDisposable
 
         _paneToWindow.Remove(pane);
         _windowToPane.Remove(state.Hwnd);
+        if (_lastFocusedPane == pane)
+        {
+            _lastFocusedPane = null;
+        }
         RestoreWindowState(state);
     }
 
@@ -169,12 +174,30 @@ internal sealed class WindowEmbedder : IDisposable
         return _paneToWindow.ContainsKey(pane);
     }
 
+    public void ActivateLastEmbeddedWindow()
+    {
+        if (_lastFocusedPane == null)
+        {
+            return;
+        }
+
+        if (!_paneToWindow.ContainsKey(_lastFocusedPane))
+        {
+            _lastFocusedPane = null;
+            return;
+        }
+
+        ActivateEmbeddedWindow(_lastFocusedPane);
+    }
+
     public void ActivateEmbeddedWindow(Panel pane)
     {
         if (!_paneToWindow.TryGetValue(pane, out var state) || !Win32.IsWindow(state.Hwnd))
         {
             return;
         }
+
+        _lastFocusedPane = pane;
 
         var shellHandle = _uiControl.FindForm()?.Handle ?? _uiControl.Handle;
         var currentThread = Win32.GetCurrentThreadId();
@@ -302,6 +325,10 @@ internal sealed class WindowEmbedder : IDisposable
 
         _windowToPane.Remove(hwnd);
         _paneToWindow.Remove(pane);
+        if (_lastFocusedPane == pane)
+        {
+            _lastFocusedPane = null;
+        }
 
         if (restoreWindowState)
         {

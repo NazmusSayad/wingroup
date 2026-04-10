@@ -22,6 +22,7 @@ public sealed class ShellForm : Form
 
         Load += OnLoad;
         Resize += OnResize;
+        Activated += OnActivated;
         FormClosed += OnFormClosed;
     }
 
@@ -62,6 +63,11 @@ public sealed class ShellForm : Form
 
         _windowEmbedder.ShowAllChildren();
         _paneManager.ResizeEmbeddedWindows();
+    }
+
+    private void OnActivated(object? sender, EventArgs e)
+    {
+        BeginInvoke(new Action(_windowEmbedder.ActivateLastEmbeddedWindow));
     }
 
     private void OnFormClosed(object? sender, FormClosedEventArgs e)
